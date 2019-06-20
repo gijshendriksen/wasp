@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.text.Text;
@@ -93,8 +94,26 @@ public class ResultsFetcher {
     final String title = source.get(Index.FIELD_TITLE_NAME).toString();
     final String content = source.get(Index.FIELD_CONTENT_NAME).toString();
     final String snippet = this.getSnippet(hit);
-    
-    return new Result(score, uri, instant, title, content, snippet);
+    final String original = (String) source.get(Index.FIELD_ORIGINAL_NAME);
+
+    Result result = new Result(score, uri, instant, title, content, snippet);
+
+    if (original != null) {
+      try {
+        GetResponse response = this.index.getResponse(original);
+        final Map<String, Object> originalDocument = response.getSourceAsMap();
+        final MinimalRequest originalRequest = this.pickRequest(originalDocument, from, to);
+
+        final String originalUri = originalRequest.getUri();
+        final String originalTitle = originalDocument.get(Index.FIELD_TITLE_NAME).toString();
+
+        result.setOriginal(originalUri, originalTitle);
+      } catch(IOException e) {
+        // Abort request for original values, but still return the current result.
+      }
+    }
+
+    return result;
   }
   
   protected MinimalRequest pickRequest(

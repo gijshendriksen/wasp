@@ -55,15 +55,23 @@ li.result .meta {
   display: flex;
   justify-content: space-between;
 }
-li.result .meta .uri, li.result .meta time {
+li.result .meta .uri, li.result .meta time, li.result .meta .original {
   display: flex-item;
 }
 li.result .meta time::before {
   content: "@";
 }
+li.result .meta .original {
+  font-style: italic;
+  color: darkgray;
+}
 li.result .snippet {
   display: block;
   margin-top: 0.25rem;
+}
+
+li.result.crawled .title {
+  font-style: italic;
 }
 
 /* footer */

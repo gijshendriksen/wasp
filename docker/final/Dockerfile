@@ -1,4 +1,4 @@
-FROM webis/wasp:base-0.0.1
+FROM webis/wasp:base
 
 RUN mkdir -p /home/user/srv/warc-indexer /home/user/srv/search-service
 
@@ -13,6 +13,8 @@ COPY pywb/templates/* /home/user/srv/pywb/templates/
 COPY warc-indexer/* /home/user/srv/warc-indexer
 
 COPY search-service/* /home/user/srv/search-service
+
+COPY background-crawler/* /home/user/srv/background-crawler/
 
 COPY *.jar /home/user/srv/
 COPY control.sh /home/user/

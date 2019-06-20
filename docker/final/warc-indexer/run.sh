@@ -15,7 +15,7 @@ case $1 in
       java -cp ../*.jar de.webis.warc.index.Index $elasticsearch_port 1> initialize-sysout.txt 2> initialize-syserr.txt
     fi
 
-    java -cp ../*.jar de.webis.warc.index.WarcIndexer /home/user/srv/warcprox/archive $elasticsearch_port 1> sysout.txt 2> syserr.txt &
+    java -cp ../*.jar de.webis.warc.index.WarcIndexer /home/user/srv/warcprox/archive /home/user/srv/background-crawler/urls.json $elasticsearch_port 1> sysout.txt 2> syserr.txt &
     echo $! > pid.txt
     ;;
   stop)

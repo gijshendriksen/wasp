@@ -243,22 +243,39 @@ public class ResultPageRenderer {
       final PrintWriter output, final Result result,
       final DateTimeZone timezone) {
     final String title = StringEscapeUtils.escapeHtml4(result.getTitle());
-    final String replayUri = this.getReplayUri(result);
     final String liveUri = result.getUri();
 
-    output.append(String.format(
+    if (result.isCrawled()) {
+      output.append(String.format(
+        "<li class='result crawled'>\n" +
+        "  <div class='links'>\n" +
+        "    <a href='%s' class='title'>%s</a>\n" +
+        "  </div>\n" +
+        "  <span class='meta'><span class='original'>Crawled from \"%s\" <a href='%s' class='live'>live</a></span> %s</span>\n" +
+        "  <span class='snippet'>%s</span>\n" +
+        "</li>\n",
+        liveUri, title, result.getOriginalTitle(), result.getOriginalUri(),
+        this.getHtmlTime(result.getInstant(), timezone),
+        this.processSnippet(result.getSnippet())
+      ));
+    } else {
+      final String replayUri = this.getReplayUri(result);
+      output.append(String.format(
         "<li class='result'>\n" +
         "  <div class='links'>\n" +
         "    <a href='%s' class='title'>%s</a>\n" +
         "    <a href='%s' class='archive'>archive</a>\n" +
         "    <a href='%s' class='live'>live</a>\n" +
+        "    <p>%s</p>\n" +
         "  <span class='meta'><span class='uri'>%s</span> %s</span>\n" +
         "  <span class='snippet'>%s</span>\n" +
         "</li>\n",
-        replayUri, title, replayUri, liveUri,
-        this.getDisplayUri(result.getUri()),
+        replayUri, title, replayUri, liveUri, result.getScore(),
+        this.getDisplayUri(liveUri),
         this.getHtmlTime(result.getInstant(), timezone),
-        this.processSnippet(result.getSnippet())));
+        this.processSnippet(result.getSnippet())
+      ));
+    }
   }
   
   protected String getDisplayUri(final String uri) {

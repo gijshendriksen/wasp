@@ -19,14 +19,18 @@ public class Result {
   protected final String content;
   
   protected final String snippet;
+
+  protected String originalUri = null;
+
+  protected String originalTitle = null;
   
   /////////////////////////////////////////////////////////////////////////////
   // CONSTRUCTORS
   /////////////////////////////////////////////////////////////////////////////
   
   public Result(final float score,
-      final String uri, final Instant instant,
-      final String title, final String content, final String snippet) {
+      final String uri, final Instant instant, final String title,
+      final String content, final String snippet) {
     if (uri == null) { throw new NullPointerException("URI"); }
     if (instant == null) { throw new NullPointerException("instant"); }
     if (title == null) { throw new NullPointerException("title"); }
@@ -67,7 +71,24 @@ public class Result {
   public String getSnippet() {
     return this.snippet;
   }
-  
+
+  public String getOriginalUri() {
+      return this.originalUri;
+  }
+
+  public String getOriginalTitle() {
+      return this.originalTitle;
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // SETTER
+  /////////////////////////////////////////////////////////////////////////////
+
+  public void setOriginal(String originalUri, String originalTitle) {
+      this.originalUri = originalUri;
+      this.originalTitle = originalTitle;
+  }
+
   /////////////////////////////////////////////////////////////////////////////
   // FUNCTIONALITY
   /////////////////////////////////////////////////////////////////////////////
@@ -75,7 +96,9 @@ public class Result {
   public boolean isEmpty() {
     return this.getSnippet().isEmpty();
   } 
-  
+
+  public boolean isCrawled() { return this.originalUri != null || this.originalTitle != null; }
+
   @Override
   public String toString() {
     return String.format(

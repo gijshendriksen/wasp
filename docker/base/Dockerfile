@@ -9,7 +9,7 @@ RUN pip install virtualenv
 RUN useradd -ms /bin/bash user
 USER user
 
-RUN mkdir -p /home/user/srv/warcprox /home/user/srv/pywb /home/user/srv/elasticsearch
+RUN mkdir -p /home/user/srv/warcprox /home/user/srv/pywb /home/user/srv/elasticsearch /home/user/srv/background-crawler/
 
 WORKDIR /home/user/srv/warcprox
 RUN virtualenv env
@@ -28,6 +28,10 @@ RUN tar xzf elasticsearch-*.tar.gz
 RUN rm elasticsearch-*.tar.gz
 RUN sed -i 's/^#path\.data.*/path.data: \/home\/user\/srv\/elasticsearch\/index/' elasticsearch-*/config/elasticsearch.yml
 RUN sed -i 's/^#path\.logs.*/path.logs: \/home\/user\/srv\/elasticsearch\/logs/' elasticsearch-*/config/elasticsearch.yml
+
+WORKDIR /home/user/srv/background-crawler
+RUN virtualenv env
+RUN /bin/bash -c "source env/bin/activate && pip install requests elasticsearch beautifulsoup4"
 
 WORKDIR /home/user/srv
 

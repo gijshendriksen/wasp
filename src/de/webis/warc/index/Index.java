@@ -16,6 +16,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -53,13 +54,16 @@ public class Index implements AutoCloseable {
   public static final String FIELD_URI_NAME = "uri";
   
   public static final String FIELD_DATE_NAME = "date";
-  
+
+  public static final String FIELD_ORIGINAL_NAME = "original";
+
   protected static final String TYPE_MAPPING = 
       "{\"" + TYPE_NAME + "\":{\n" + 
       "  \"properties\":{\n" +
       "    \"" + FIELD_TITLE_NAME + "\":{\"type\":\"text\"},\n" +
       "    \"" + FIELD_CONTENT_NAME + "\":{\"type\":\"text\"},\n" +
       "    \"" + FIELD_REVISITED_NAME + "\":{\"type\":\"keyword\"},\n" +
+      "    \"" + FIELD_ORIGINAL_NAME + "\":{\"type\":\"keyword\"},\n" +
       "    \"" + FIELD_REQUEST_NAME + "\":{\n" +
       "      \"type\":\"nested\",\n" +
       "      \"properties\":{\n" +
@@ -69,7 +73,7 @@ public class Index implements AutoCloseable {
       "    }\n" +
       "  }\n" +
       "}}";
-  
+
   /////////////////////////////////////////////////////////////////////////////
   // MEMBERS
   /////////////////////////////////////////////////////////////////////////////
@@ -96,6 +100,10 @@ public class Index implements AutoCloseable {
   public void initialize() throws IOException {
     final CreateIndexRequest createIndexRequest =
         new CreateIndexRequest(INDEX_NAME);
+    createIndexRequest.settings(Settings.builder()
+        .put("index.number_of_shards", 1)
+        .put("index.number_of_replicas", 2)
+    );
     LOG.info("Created index with mapping:\n" + TYPE_MAPPING);
     createIndexRequest.mapping(TYPE_NAME, TYPE_MAPPING, XContentType.JSON);
     this.client.indices().create(createIndexRequest);

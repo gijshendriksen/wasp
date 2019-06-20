@@ -1,6 +1,6 @@
 #!/bin/bash
 
-services="elasticsearch warcprox pywb warc-indexer search-service"
+services="elasticsearch warcprox pywb warc-indexer search-service background-crawler"
 
 for service in $services;do
   pushd srv/$service
