@@ -14,6 +14,7 @@ import java.util.function.Function;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import net.htmlparser.jericho.*;
@@ -190,7 +191,7 @@ public class WarcIndexer implements Consumer<WarcRecord> {
         final String parsedUrl = this.parseUrl(href, originalUri);
 
         if (parsedUrl != null && !containsUrl(currentUrls, parsedUrl)) {
-          final String context = this.getContext(el, 40);
+          final String context = this.getContext(el, 60);
 
           LinkRepresentation repr = new LinkRepresentation(parsedUrl, context, documentId);
 
@@ -234,18 +235,28 @@ public class WarcIndexer implements Consumer<WarcRecord> {
     // we have gathered enough context on either side of the anchor tag
     while ((leftContext.length < leftAmount || rightContext.length < rightAmount) &&
             (parent = parent.getParentElement()) != null) {
-      String[] parts = parent.getTextExtractor().toString().split(innerHtml);
+      String[] parts = parent.toString().split(Pattern.quote(innerHtml));
 
-      if (leftContext.length < leftAmount) {
+      if (leftContext.length < leftAmount && parts.length > 0) {
         // Extract context to the left of the anchor tag
-        String[] left = parts[0].trim().split("\\s+");
-        leftContext = Arrays.copyOfRange(left, left.length - leftAmount, left.length);
+        Source leftSource = new Source(parts[0]);
+        String[] left = leftSource.getTextExtractor()
+                .toString()
+                .trim()
+                .replaceAll("[^a-zA-Z\\s]", "")
+                .split("\\s+");
+        leftContext = Arrays.copyOfRange(left, Math.max(left.length - leftAmount, 0), left.length);
       }
 
-      if (rightContext.length < rightAmount) {
+      if (rightContext.length < rightAmount && parts.length > 1) {
         // Extract context to the right of the anchor tag
-        String[] right = parts[1].trim().split("\\s+");
-        rightContext = Arrays.copyOfRange(right, 0, rightAmount);
+        Source rightSource = new Source(parts[1]);
+        String[] right = rightSource.getTextExtractor()
+                .toString()
+                .trim()
+                .replaceAll("[^a-zA-Z\\s]", "")
+                .split("\\s+");
+        rightContext = Arrays.copyOfRange(right, 0, Math.min(rightAmount, right.length));
       }
     }
 

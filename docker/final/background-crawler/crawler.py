@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from bs4 import BeautifulSoup
 from datetime import datetime
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, TransportError
 
 import json
 import logging
@@ -100,12 +100,12 @@ class Indexer(object):
             tf = vectors[key]['term_freq']
 
             freq = vectors[key].get('doc_freq', 1)
-            idf = 1 + math.log(num_docs / freq)
+            idf = 1 + math.log(float(num_docs) / freq)
 
             result[key] = tf * idf**2
 
         if amount is not None:
-            best_terms = sorted(result.items(), key=lambda pair: pair[1])[:amount]
+            best_terms = sorted(result.items(), key=lambda pair: pair[1], reverse=True)[:amount]
             return dict(best_terms)
 
         return result
@@ -147,19 +147,30 @@ class Indexer(object):
 
         # Extract term vectors of all result documents
         for result in results['hits']['hits'][:COMPARISON_AMOUNT]:
-            res = self.es.termvectors(index='archive', doc_type='response', id=result['_id'], fields='content',
-                                      offsets=False, positions=False, term_statistics=True)
+            try:
+                res = self.es.termvectors(index='archive', doc_type='response', id=result['_id'], fields='content',
+                                          offsets=False, positions=False, term_statistics=True)
+            except TransportError:
+                self.logger.warning('Could not extract term vectors of {}'.format(result['_id']))
 
             most_similar.append(self.extract_termvectors(res, TERM_AMOUNT))
 
         # Extract term vector of query document
-        doc_tv = self.extract_termvectors(self.es.termvectors(index='archive', doc_type='response',
-                                                              body={'doc': {'content': document['content']}},
-                                                              offsets=False, positions=False, term_statistics=True),
-                                          TERM_AMOUNT)
+        try:
+            doc_tv = self.extract_termvectors(self.es.termvectors(index='archive', doc_type='response',
+                                                                  body={'doc': {'content': document['content']}},
+                                                                  offsets=False, positions=False, term_statistics=True),
+                                              TERM_AMOUNT)
+        except TransportError:
+            self.logger.error('Could not extract term vectors of query document at {}'.format(document['url']))
+            return False
 
         similarities = [self.cosine_similarity(doc_tv, tv) for tv in most_similar]
-        return min(similarities) > self.threshold
+
+        if similarities:
+            self.logger.info('Min cosine similarity for {} is {}'.format(document['url'], min(similarities)))
+
+        return similarities and min(similarities) > self.threshold
 
     def index(self, document):
         """
@@ -191,7 +202,7 @@ class Indexer(object):
 
         r = requests.head(entry['url'])
 
-        if 'text/html' in r.headers['Content-Type']:
+        if 'text/html' in r.headers.get('Content-Type', ''):
             r = requests.get(entry['url'])
             soup = BeautifulSoup(r.content, features='html.parser')
             [tag.extract() for tag in soup.findAll(TAGS_BLACKLIST)]
@@ -214,8 +225,9 @@ class BackgroundCrawler(object):
     Represents the topical crawler, i.e. the component that decides on the crawl ordering.
     """
 
-    def __init__(self, elastic_search, indexer, urls_path, interval):
+    def __init__(self, elastic_search, logger, indexer, urls_path, interval):
         self.es = elastic_search
+        self.logger = logger
         self.indexer = indexer
         self.urls_path = urls_path
         self.interval = interval
@@ -253,7 +265,12 @@ class BackgroundCrawler(object):
         existing_urls = set(self.get_existing_urls())
 
         with open(self.urls_path) as _file:
-            entries = [entry for entry in json.load(_file) if entry['url'] not in existing_urls]
+            try:
+                entries = json.load(_file)
+            except ValueError:
+                self.logger.warning('{} does not contain valid JSON!'.format(self.urls_path))
+                return None
+        entries = [entry for entry in entries if entry['url'] not in existing_urls]
 
         if not entries:
             return None
@@ -279,7 +296,7 @@ class BackgroundCrawler(object):
 
         # Assign the highest Elasticsearch score to each entry
         for entry, res in zip(entries, result['responses']):
-            entry['score'] = res['hits']['max_score']
+            entry['score'] = sum([hit['_score'] for hit in res['hits']['hits']])
 
         entries.sort(key=lambda entry: entry['score'])
         best_entry = entries.pop()
@@ -355,7 +372,7 @@ if __name__ == '__main__':
     es = Elasticsearch()
 
     indexer = Indexer(es, logger, args.threshold)
-    bc = BackgroundCrawler(es, indexer, args.urls_path, args.interval)
+    bc = BackgroundCrawler(es, logger, indexer, args.urls_path, args.interval)
 
     try:
         bc.run()
